@@ -10,7 +10,7 @@
     <!-- drag and drop field -->
     <p class="text-center">Drag & Drop</p>
     <div @dragover.prevent @dragenter.prevent @drop.prevent="getDataDrop($event)" class="flex-grow h-64 text-gray-900 bg-gray-300 rounded-2xl mx-6 my-4 overflow-auto flex flex-col flex-nowrap place-items-start">
-        <div v-for="file in files" :key="file" class="min-w-max px-4 py-1"> {{ file.name }}</div>
+        <div v-for="file in storeFiles" :key="file" class="min-w-max px-4 py-1"> {{ file.name }}</div>
     </div>
     <!-- Start knopf -->
     <div class="self-center mx-auto mb-4">
@@ -19,14 +19,17 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { useStore } from 'vuex';
+import { ref, computed } from 'vue';
 import { remote } from 'electron';
 
 var dialog = remote.dialog;
 
 export default {
     setup () {
-        var files = ref([]);
+        const store = useStore();
+        const storeFiles = computed( () => store.state.inputfiles);
+        var localFiles = ref([]);
 
         function getDataDialog(){
             dialog.showOpenDialog({
@@ -36,10 +39,10 @@ export default {
             filters: [{name: 'CSV', extensions: ['csv']}]
             })
             .then(function(result){
-                files.value=[];
+                localFiles.value=[];
                 if(result !== undefined){
                     result.filePaths.forEach(entry => {
-                        files.value.push(
+                        localFiles.value.push(
                             {
                                 fullPath: entry,
                                 name: entry.split(/(\\|\/)/).pop(),
@@ -47,24 +50,31 @@ export default {
                         );
                     });
                 }
-                console.log(files.value)
             });
         }
 
         function getDataDrop(e) {
-            files.value =[];
+            localFiles.value =[];
             console.log(e)
-            var filelist = e.dataTransfer.files;
+            var filelist = e.dataTransfer.localFiles;
             for (let index = 0; index < filelist.length; index++) {
-                files.value.push(filelist[index])
+                localFiles.value.push(filelist[index])
             }
-            console.log(filelist);
         }
         return {
-            files,
+            localFiles,
+            storeFiles,
             getDataDialog,
-            getDataDrop
+            getDataDrop,
+            store
         }
+    },
+
+    watch: {
+        localFiles(newFiles){
+            this.store.commit('setInputFiles', newFiles)
+        }
+
     }
 }
 </script>
