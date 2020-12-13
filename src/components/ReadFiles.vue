@@ -9,8 +9,8 @@
     </div>
     <!-- drag and drop field -->
     <p class="text-center">Drag & Drop</p>
-    <div class="flex-grow h-64 text-gray-900 bg-gray-300 rounded-2xl mx-6 my-4 overflow-auto flex flex-col flex-nowrap place-items-start">
-        <div v-for="file in files" :key="file" class="min-w-max px-4 py-1"> {{ file.fileName }}</div>
+    <div @dragover.prevent @dragenter.prevent @drop.prevent="getDataDrop($event)" class="flex-grow h-64 text-gray-900 bg-gray-300 rounded-2xl mx-6 my-4 overflow-auto flex flex-col flex-nowrap place-items-start">
+        <div v-for="file in files" :key="file" class="min-w-max px-4 py-1"> {{ file.name }}</div>
     </div>
     <!-- Start knopf -->
     <div class="self-center mx-auto mb-4">
@@ -29,8 +29,6 @@ export default {
         var files = ref([]);
 
         function getDataDialog(){
-
-            
             dialog.showOpenDialog({
             title:"Daten der Brille",
             defaultPath: remote.app.getPath('desktop'),
@@ -44,7 +42,7 @@ export default {
                         files.value.push(
                             {
                                 fullPath: entry,
-                                fileName: entry.split(/(\\|\/)/).pop(),
+                                name: entry.split(/(\\|\/)/).pop(),
                             }
                         );
                     });
@@ -52,9 +50,20 @@ export default {
                 console.log(files.value)
             });
         }
+
+        function getDataDrop(e) {
+            files.value =[];
+            console.log(e)
+            var filelist = e.dataTransfer.files;
+            for (let index = 0; index < filelist.length; index++) {
+                files.value.push(filelist[index])
+            }
+            console.log(filelist);
+        }
         return {
             files,
-            getDataDialog
+            getDataDialog,
+            getDataDrop
         }
     }
 }
