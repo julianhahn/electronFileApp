@@ -14,7 +14,7 @@
                     <div class="w-max mx-auto self-center">
                         <p> Wo soll die Auswertung gespeichert werden?</p>
                         <button @click="chooseOutputFolder" class="bg-green-400  text-gray-900 border border-gray-800 rounded-3xl px-2 py-2 mt-2"> Ordner auswählen</button>
-                        <p class="text-lg w-10/12 mx-auto pt-1">{{filepath.path}}</p>
+                        <p class="text-lg w-10/12 mx-auto pt-1">{{filepath}}</p>
                     </div>
                 </div>
             </div>
@@ -24,6 +24,10 @@
                     <div class="my-auto">
                         <!-- Daten einfügen und anzeigen lassen -->
                         <ReadFiles/>
+                        <!-- Start knopf -->
+                        <div class="self-center mx-auto mb-4">
+                            <button @click="convertData" class="bg-green-400 border text-gray-900 border-gray-800 rounded-3xl px-4 py-2 mt-2">Start</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -35,10 +39,15 @@
 <script>
 import Header from './components/Header.vue';
 import ToggleTest from '@/components/ToggleTest.vue';
-
-import { reactive } from 'vue'
-import { remote } from 'electron'
 import ReadFiles from './components/ReadFiles.vue';
+
+import { ref, computed } from 'vue'
+import { app, remote } from 'electron'
+import { useStore } from 'vuex';
+import fs from 'fs';
+// import dayjs from 'dayjs';
+import path from 'path';
+import isDev from 'electron-is-dev'
 
 let dialog = remote.dialog;
 
@@ -51,9 +60,29 @@ export default {
   },
 
   setup() {
-     const filepath = reactive({
-       path: "",
+    const store = useStore()
+    const filepath = ref("");
+
+    const canStart = computed(() => {
+      return store.state.testVersion && store.state.outputPath && (store.state.inputfiles && store.state.inputfiles.lenght > 0) 
     })
+
+    function convertData(){
+      // wenn store.mode == pit dann als Kopiere eine kopie eine Kopie des Ergebnisses in dem Outputfolder
+      if(store.state.testVersion === "pit"){
+        let outputPath = path.normalize(store.state.outputPath + "/Auswertungssheet_PIT_.xlsx")
+        let inputPath = "";
+        if(isDev){
+          inputPath = path.normalize(path.join(remote.app.getAppPath(),"../extraResources/Auswertungssheet_PIT-VR.xlsx"));
+          console.log("in development " + inputPath)
+        }else {
+          inputPath = path.normalize(path.join(app.getAppPath(),"../extraResources/Auswertungssheet_PIT-VR.xlsx"));
+        }
+        //gehe in die erste Datei rein
+
+        fs.copyFileSync(inputPath, outputPath);
+      }
+    }
 
     function chooseOutputFolder (){
       dialog.showOpenDialog({
@@ -63,13 +92,23 @@ export default {
         })
         .then(function(result){
             if( result !== undefined){
-                filepath.path = result.filePaths[0]
+                filepath.value = result.filePaths[0]
             }
         });
     }
+
     return {
       filepath, 
-      chooseOutputFolder
+      chooseOutputFolder,
+      convertData,
+      store,
+      canStart
+    }
+  },
+
+  watch:{
+    filepath(newVal){
+      this.store.commit('setOutputPath', newVal)
     }
   }
 }
