@@ -9,7 +9,12 @@
     </div>
     <!-- drag and drop field -->
     <p class="text-center">Drag & Drop</p>
-    <div @dragover.prevent @dragenter.prevent @drop.prevent="getDataDrop($event)" class="flex-grow h-64 text-gray-900 bg-gray-300 rounded-2xl mx-6 my-4 overflow-auto flex flex-col flex-nowrap place-items-start">
+        <div 
+         @dragover.prevent="highlighted=true"
+         @dragleave.prevent="highlighted=false"
+         @drop.prevent="getDataDrop($event)"
+         class="flex-grow h-64 text-gray-900 bg-gray-300 rounded-2xl mx-6 my-4 overflow-auto flex flex-col flex-nowrap place-items-start"
+         :class="{'bg-green-400': highlighted}">
         <div v-for="file in storeFiles" :key="file" class="min-w-max px-4 py-1"> {{ file.name }}</div>
     </div>
     
@@ -27,7 +32,8 @@ export default {
         const store = useStore();
         const storeFiles = computed( () => store.state.inputfiles);
         var localFiles = ref([]);
-
+        var highlighted = ref(false);
+        
         function getDataDialog(){
             dialog.showOpenDialog({
             title:"Daten der Brille",
@@ -51,9 +57,9 @@ export default {
         }
 
         function getDataDrop(e) {
+            this.highlighted = false;
             localFiles.value =[];
-            console.log(e)
-            var filelist = e.dataTransfer.localFiles;
+            var filelist = e.dataTransfer.files;
             for (let index = 0; index < filelist.length; index++) {
                 localFiles.value.push(filelist[index])
             }
@@ -63,7 +69,8 @@ export default {
             storeFiles,
             getDataDialog,
             getDataDrop,
-            store
+            store,
+            highlighted
         }
     },
 
