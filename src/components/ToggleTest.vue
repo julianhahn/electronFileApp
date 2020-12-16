@@ -21,9 +21,11 @@
 
 <script>
 import { computed,ref } from 'vue';
+import { useStore } from 'vuex';
 
 export default {
     setup () {
+        const store = useStore();
         const mode = ref(null);
         
         const state = (_mode) => computed(() => {
@@ -41,8 +43,14 @@ export default {
         return {
             mode,
             mazeState,
-            pitState
+            pitState,
+            store
         };
+    },
+    watch: {
+        mode(newVal){
+            this.store.commit('setTestVersion', newVal);
+        }
     }
 }
 </script>
