@@ -26,7 +26,9 @@
                         <ReadFiles/>
                         <!-- Start knopf -->
                         <div class="self-center mx-auto mb-4">
-                            <button @click="convertData" class="bg-green-400 border text-gray-900 border-gray-800 rounded-3xl px-4 py-2 mt-2">Start</button>
+                            <button :disabled='!canStart'  @click="convertData"
+                            class="bg-green-400 border text-gray-900 border-gray-800 rounded-3xl px-4 py-2 mt-2"
+                            :class="{'opacity-50': !canStart}">Start</button>
                         </div>
                     </div>
                 </div>
@@ -64,7 +66,8 @@ export default {
     const filepath = ref("");
 
     const canStart = computed(() => {
-      return store.state.testVersion && store.state.outputPath && (store.state.inputfiles && store.state.inputfiles.lenght > 0) 
+      console.log(Object.keys(store.state.inputfiles).length > 0)
+      return store.state.testVersion && store.state.outputPath && (store.state.inputfiles && Object.keys(store.state.inputfiles).length > 0) 
     })
 
     function convertData(){
