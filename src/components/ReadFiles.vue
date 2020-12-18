@@ -61,7 +61,10 @@ export default {
             localFiles.value =[];
             var filelist = e.dataTransfer.files;
             for (let index = 0; index < filelist.length; index++) {
-                localFiles.value.push(filelist[index])
+                localFiles.value.push({
+                    fullPath: filelist[index].path,
+                    name: filelist[index].name
+                })
             }
         }
         return {

@@ -44,14 +44,19 @@ import ToggleTest from '@/components/ToggleTest.vue';
 import ReadFiles from './components/ReadFiles.vue';
 
 import { ref, computed } from 'vue'
-import { app, remote } from 'electron'
+import { remote } from 'electron'
 import { useStore } from 'vuex';
 import fs from 'fs';
-// import dayjs from 'dayjs';
 import path from 'path';
 import isDev from 'electron-is-dev'
+import csv from 'csv-parser'
+import XlsxTemplate from 'xlsx-template';
+import { promisify } from 'util';
 
 let dialog = remote.dialog;
+const readFileAsync = promisify(fs.readFile);
+const writeFileAsync = promisify(fs.writeFile);
+const renameFileAsync = promisify(fs.rename);
 
 export default {
   name: 'App',
@@ -66,27 +71,78 @@ export default {
     const filepath = ref("");
 
     const canStart = computed(() => {
-      console.log(Object.keys(store.state.inputfiles).length > 0)
       return store.state.testVersion && store.state.outputPath && (store.state.inputfiles && Object.keys(store.state.inputfiles).length > 0) 
     })
 
-    function convertData(){
+    async function convertData(){
       // wenn store.mode == pit dann als Kopiere eine kopie eine Kopie des Ergebnisses in dem Outputfolder
-      if(store.state.testVersion === "pit"){
-        let outputPath = path.normalize(store.state.outputPath + "/Auswertungssheet_PIT_.xlsx")
-        let inputPath = "";
-        if(isDev){
-          inputPath = path.normalize(path.join(remote.app.getAppPath(),"../extraResources/Auswertungssheet_PIT-VR.xlsx"));
-          console.log("in development " + inputPath)
-        }else {
-          inputPath = path.normalize(path.join(app.getAppPath(),"../extraResources/Auswertungssheet_PIT-VR.xlsx"));
-        }
-        //gehe in die erste Datei rein
+      try{
+        var files = store.state.inputfiles;
+        if(store.state.testVersion === "pit"){
+          let outputPath = path.normalize(store.state.outputPath + "/Auswertungssheet.xlsx")
+          let inputPath = "";
+          if(isDev){
+            inputPath = path.normalize(path.join(remote.app.getAppPath(),"../extraResources/Auswertungssheet.xlsx"));
+          }else {
+            inputPath = path.normalize(path.join(remote.app.getAppPath(),"../extraResources/Auswertungssheet.xlsx"));
+          }
+          const templateFile = await readFileAsync(inputPath);
+          var template = new XlsxTemplate(templateFile);
 
-        fs.copyFileSync(inputPath, outputPath);
+          let sheetNames = ["Training","GespiegeltesC", "Stufe", "V", "U", "O", "Deich", "ZickZack", "n"];
+          let sheetsTotal = sheetNames.length;
+          for (const file of files){
+            const sheetName = file.fullPath.match(/^.*?_(?<name>[a-z\s]+).csv$/im).groups.name.replace(" ", "");
+            await setDataInSheet(template, file.fullPath, sheetName)
+            sheetNames = sheetNames.filter((_sheetName)=> _sheetName !== sheetName)
+          }
+          var result = template.generate();
+          await writeFileAsync(outputPath, result, "binary");
+          const csvData = await getCSVfromFile(files[0].fullPath)
+          const patientID = csvData[0]["PatientenID"].replace(/\s+/g,"_");
+          const newOutputPath = outputPath.replace("Auswertungssheet", "Auswertungssheet_"+patientID)
+          await renameFileAsync(outputPath, newOutputPath);
+          dialog.showMessageBox({title: "Success", message: `Es wurden ${sheetsTotal - sheetNames.length} von ${sheetsTotal} Pfaden geschrieben.`})
+        }
+      }
+      catch(e){
+        console.log(e.stack)
       }
     }
 
+    function parseGermanFloat(str){
+      return parseFloat(str.replace(",", "."));
+    }
+
+    async function setDataInSheet(template, csvFilepath, sheetName){
+      var data = await getCSVfromFile(csvFilepath);
+      const [rowOne, rowTwo, rowThree] = data;
+      const endPoint = { x: data[data.length-2]['playerPosition.X in Metern vom Ursprung'], z: data[data.length-2]['playerPosition.Z in Metern vom Ursprung']};
+      var values = {
+        ax: parseGermanFloat(rowOne['ZielPositionen.X']),
+        ay: parseGermanFloat(rowOne['ZielPositionen.Z']),
+        bx: parseGermanFloat(rowTwo['ZielPositionen.X']),
+        by: parseGermanFloat(rowTwo['ZielPositionen.Z']),
+        cx: parseGermanFloat(rowThree['ZielPositionen.X']),
+        cy: parseGermanFloat(rowThree['ZielPositionen.Z']),
+        confirmx: parseGermanFloat(endPoint.x),
+        confirmy: parseGermanFloat(endPoint.z),
+        };
+      template.substitute(sheetName, values);
+    }
+
+    function getCSVfromFile(inputFilePath){
+      const results=[];
+      return new Promise( resolve => {
+        fs.createReadStream(inputFilePath)
+        .pipe(csv({ separator: ';' }))
+        .on('data', (data) => results.push(data))
+        .on('end', () => {
+          resolve(results)
+        });
+      });
+    }
+    
     function chooseOutputFolder (){
       dialog.showOpenDialog({
             title:"Speicherort der Auswertung",
