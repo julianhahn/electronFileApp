@@ -4,7 +4,7 @@
 
  For external person's the application is quite useless, but maybe you simply want a electron example as inspiration for your own project.
 
- Showcase:
+ Showcase: <br>
  ![screenshot](./uksh_showcase.gif)
 ## Project setup
 ```
